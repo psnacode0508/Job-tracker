@@ -10,6 +10,7 @@ import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import applicationRoutes from './routes/applicationRoutes.js';
 import demoRoutes from './routes/demoRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,6 +51,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api', demoRoutes);
 
 // 6. 404 handler for unmatched routes
