@@ -137,3 +137,51 @@ Use your browser's Developer Tools (F12 &rarr; **Network** tab &rarr; **Fetch/XH
   ![DevTools Network: 400 Bad Request Validation Error](screenshots/network-400-validation-error.png)
   ```
   *(Attach screenshot showing the 400 Bad Request status and validation error response payload)*
+
+---
+
+## 4. Live Production Deployment & Architecture
+
+- **Live Frontend (Vercel)**: [https://jobtrackr-app.vercel.app](https://jobtrackr-app.vercel.app) *(Replace with your deployed Vercel domain)*
+- **Live API Health Check (Render)**: [https://jobtrackr-api.onrender.com/api/health](https://jobtrackr-api.onrender.com/api/health) *(Replace with your deployed Render domain)*
+
+### Recruiter Demo Accounts
+| Role | Email | Password | Access Privileges |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `alice.johnson@example.com` | `Password123!` | Full Kanban Board + Platform Analytics (`/api/admin/stats`) |
+| **User** | `demo@jobtrackr.com` | `Password123!` | Personal Kanban Board + Ownership Isolated Data |
+| **User (Alt)** | `bob.smith@example.com` | `Password123!` | Personal Kanban Board + Ownership Isolated Data |
+
+### Architecture Overview
+```mermaid
+flowchart LR
+    User([User Browser]) <-->|"HTTPS / WSS"| Frontend["React 19 SPA\n(Vercel Global CDN)"]
+    Frontend <-->|"REST API + JWT Bearer\n(CORS Authorized)"| Backend["Express 4 API\n(Render Docker Container)"]
+    Backend <-->|"TLS / Mongoose ODM"| Database[("MongoDB Atlas\n(Replica Set Cluster)")]
+```
+
+---
+
+## 5. Production Build: `dist/` vs. `src/` + `node_modules/`
+
+Running `npm run build` compiles the application into the `dist/` directory:
+- **What Vite Outputs in `dist/`**: Minified, tree-shaken JS/CSS bundles + `index.html`.
+- **Why `dist/` is Dramatically Smaller**:
+  1. **Tree-Shaking**: Rollup analyzes static ES module graphs and strips unused library functions and classes.
+  2. **Exclusion of `devDependencies`**: Development tooling (Vite, ESLint, TypeScript types) present in `node_modules` (~100+ MB) are completely omitted.
+  3. **Minification & Mangling**: Variable identifiers, whitespace, comments, and redundant syntax are minified into ultra-compact, high-density machine code.
+
+---
+
+## 6. Docker & CI/CD Concepts
+
+### Image vs. Container
+A Docker image is an immutable, read-only template packaging application code, dependencies, and system runtime libraries.
+A container is a lightweight, isolated execution instance created at runtime from an underlying image.
+Multiple stateful or stateless containers can be instantiated from a single image across any platform.
+
+### CI vs. CD
+Continuous Integration (CI) automatically builds, lints, and tests code changes on every pull request to catch defects early.
+Continuous Delivery/Deployment (CD) automatically packages and releases verified build artifacts directly to production infrastructure.
+CI guarantees code quality and prevents merge conflicts, while CD eliminates manual deployment overhead and reduces time-to-market.
+
