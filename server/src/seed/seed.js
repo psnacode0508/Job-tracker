@@ -45,13 +45,14 @@ const SAMPLE_NOTES = [
 
 async function seedDatabase() {
   try {
-    if (!process.env.MONGO_URI) {
-      console.error('Error: MONGO_URI is not defined in environment variables.');
+    const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    if (!uri) {
+      console.error('Error: Missing MONGODB_URI / MONGO_URI environment variable.');
       process.exit(1);
     }
 
     console.log('Connecting to MongoDB for seeding...');
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(uri);
     console.log('MongoDB connected successfully.');
 
     // 1. Clear existing collections
