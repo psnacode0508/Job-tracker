@@ -10,6 +10,26 @@
       "key": "baseUrl",
       "value": "http://localhost:5000/api",
       "type": "string"
+    },
+    {
+      "key": "tokenA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenB",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "appAId",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -23,8 +43,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/applications?status=Interview&search=google",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ],
               "query": [
                 {
                   "key": "status",
@@ -63,8 +87,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/applications/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "1"
+              ]
             }
           },
           "event": [
@@ -102,8 +131,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/applications",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ]
             }
           },
           "event": [
@@ -142,8 +175,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/applications/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "1"
+              ]
             }
           },
           "event": [
@@ -173,8 +211,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/applications/2",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications", "2"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "2"
+              ]
             }
           },
           "event": [
@@ -198,8 +241,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/slow",
-              "host": ["{{baseUrl}}"],
-              "path": ["slow"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "slow"
+              ]
             }
           },
           "event": [
@@ -228,8 +275,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/block",
-              "host": ["{{baseUrl}}"],
-              "path": ["block"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "block"
+              ]
             }
           },
           "event": [
@@ -272,8 +323,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/applications",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ]
             }
           },
           "event": [
@@ -311,8 +366,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/applications",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ]
             }
           },
           "event": [
@@ -350,8 +409,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/applications",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ]
             }
           },
           "event": [
@@ -380,8 +443,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/applications/non-existent-id-99999",
-              "host": ["{{baseUrl}}"],
-              "path": ["applications", "non-existent-id-99999"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "non-existent-id-99999"
+              ]
             }
           },
           "event": [
@@ -410,8 +478,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/unknown-route",
-              "host": ["{{baseUrl}}"],
-              "path": ["unknown-route"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "unknown-route"
+              ]
             }
           },
           "event": [
@@ -429,6 +501,480 @@
                   "});"
                 ],
                 "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Day 07 Auth & Security",
+      "item": [
+        {
+          "name": "Register User A -> save tokenA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"User A\",\n  \"email\": \"usera@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Save tokenA to collection variables\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.token).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set(\"tokenA\", jsonData.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register User B -> save tokenB",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"User B\",\n  \"email\": \"userb@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Save tokenB to collection variables\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.token).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set(\"tokenB\", jsonData.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register / Login Admin user -> save adminToken",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice.johnson@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login Admin user (Alice Johnson seeded with role admin, or promote role to admin in Atlas) -> save adminToken"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Save adminToken to collection variables\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.token).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.user.role).to.eql(\"admin\");",
+                  "    pm.collectionVariables.set(\"adminToken\", jsonData.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "User A creates an application -> save appAId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"Auth Corp A\",\n  \"role\": \"Full Stack Dev\",\n  \"status\": \"Applied\",\n  \"priority\": \"High\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Save appAId to collection variables\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data._id).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set(\"appAId\", jsonData.data._id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "User B tries GET /applications/{{appAId}} -> assert 404 (ownership isolation)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications/{{appAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "{{appAId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404 for unauthorized owner access\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test(\"Assert Application not found message\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.message).to.eql(\"Application not found\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "User B tries GET /admin/stats -> assert 403 (role authorization)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403 for non-admin user\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "pm.test(\"Assert Forbidden: insufficient permissions message\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.message).to.eql(\"Forbidden: insufficient permissions\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin calls GET /admin/stats -> assert 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 for admin\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Assert admin stats payload structure\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.have.property(\"totalUsers\");",
+                  "    pm.expect(jsonData.data).to.have.property(\"totalApplications\");",
+                  "    pm.expect(jsonData.data).to.have.property(\"statusBreakdown\");",
+                  "    pm.expect(jsonData.data).to.have.property(\"averageOfferSalary\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NoSQL injection test: POST /auth/login with object email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": {\n    \"$ne\": null\n  },\n  \"password\": \"x\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Rejects NoSQL injection object with status 400 or 401\", function () {",
+                  "    pm.expect([400, 401]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Assert success is false\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "XSS note test: POST /applications/{{appAId}}/notes with script payload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenA}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"<img src=x onerror=alert(1)>\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/applications/{{appAId}}/notes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "{{appAId}}",
+                "notes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test(\"Assert note stored safely as raw text without execution\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    var notes = jsonData.data.notes;",
+                  "    var lastNote = notes[notes.length - 1];",
+                  "    pm.expect(lastNote.text).to.eql(\"<img src=x onerror=alert(1)>\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rate limit test: 6 consecutive failed POST /auth/login attempts -> assert 6th returns 429",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nonexistent@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fire 5 rapid failed attempts before the 6th to trigger the 5-request rate limit window",
+                  "const loginUrl = pm.collectionVariables.get(\"baseUrl\") + \"/auth/login\";",
+                  "const payload = {",
+                  "    url: loginUrl,",
+                  "    method: \"POST\",",
+                  "    header: { \"Content-Type\": \"application/json\" },",
+                  "    body: {",
+                  "        mode: \"raw\",",
+                  "        raw: JSON.stringify({ email: \"nonexistent@example.com\", password: \"wrongpassword\" })",
+                  "    }",
+                  "};",
+                  "",
+                  "for (let i = 1; i <= 5; i++) {",
+                  "    pm.sendRequest(payload, function (err, res) {});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 429 Too Many Requests\", function () {",
+                  "    pm.response.to.have.status(429);",
+                  "});",
+                  "pm.test(\"Assert rate limit error message\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.message).to.eql(\"Too many login attempts, please try again after 15 minutes\");",
+                  "});"
+                ]
               }
             }
           ]

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import Application from '../models/Application.js';
 import { ApiError } from '../errors/ApiError.js';
+import { protect } from '../middleware/auth.js';
 import { validateApplication, validatePatchApplication } from '../middleware/validate.js';
 
 const router = Router();
@@ -13,25 +14,23 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// Protect ALL application routes - authenticated user required
+router.use(protect);
+
 // -----------------------------------------------------------------------------
 // 1. GET /stats
 // IMPORTANT: Mounted BEFORE /:id so 'stats' is not evaluated as an ObjectId.
+// Strict ownership isolation: aggregated exclusively for req.user._id.
 // -----------------------------------------------------------------------------
 router.get(
   '/stats',
   asyncHandler(async (req, res) => {
-    const matchStage = {};
+    const ownerId = new mongoose.Types.ObjectId(req.user._id);
+    const matchStage = { owner: ownerId };
 
-    if (req.query.owner) {
-      if (!mongoose.Types.ObjectId.isValid(req.query.owner)) {
-        throw new ApiError(400, 'Invalid owner ID format');
-      }
-      matchStage.owner = new mongoose.Types.ObjectId(req.query.owner);
-    }
-
-    // Aggregation pipeline: $match (optional), $group by status with $sum: 1, $sort
+    // Aggregation pipeline: $match owner, $group by status with $sum: 1, $sort
     const statusPipeline = [
-      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+      { $match: matchStage },
       {
         $group: {
           _id: '$status',
@@ -45,11 +44,11 @@ router.get(
 
     const statusCounts = await Application.aggregate(statusPipeline);
 
-    // Calculate average salary of 'Offer' applications ($avg: '$salary')
+    // Calculate average salary of user's 'Offer' applications ($avg: '$salary')
     const offerPipeline = [
       {
         $match: {
-          ...matchStage,
+          owner: ownerId,
           status: 'Offer',
           salary: { $exists: true, $ne: null, $gte: 0 },
         },
@@ -91,7 +90,7 @@ router.get(
 );
 
 // -----------------------------------------------------------------------------
-// 2. GET / - List applications with filtering, search regex, and pagination
+// 2. GET / - List current user's applications with filtering, search, and pagination
 // -----------------------------------------------------------------------------
 router.get(
   '/',
@@ -100,7 +99,10 @@ router.get(
     const limit = Math.max(1, parseInt(req.query.limit, 10) || 10);
     const skip = (page - 1) * limit;
 
-    const queryFilter = {};
+    // Strict ownership isolation: force owner to current authenticated user
+    const queryFilter = {
+      owner: req.user._id,
+    };
 
     // Filter by status if provided (and not 'All')
     if (req.query.status && req.query.status !== 'All') {
@@ -111,13 +113,6 @@ router.get(
     if (req.query.search && req.query.search.trim() !== '') {
       const searchRegex = new RegExp(req.query.search.trim(), 'i');
       queryFilter.$or = [{ company: searchRegex }, { role: searchRegex }];
-    }
-
-    // Filter by owner if provided
-    if (req.query.owner) {
-      if (mongoose.Types.ObjectId.isValid(req.query.owner)) {
-        queryFilter.owner = req.query.owner;
-      }
     }
 
     const total = await Application.countDocuments(queryFilter);
@@ -141,15 +136,16 @@ router.get(
 );
 
 // -----------------------------------------------------------------------------
-// 3. POST / - Create a new application with duplicate check per owner
+// 3. POST / - Create a new application; owner automatically set from JWT
 // -----------------------------------------------------------------------------
 router.post(
   '/',
   validateApplication,
   asyncHandler(async (req, res) => {
-    const { owner, company, role, status, appliedOn, priority, salary, notes } = req.body;
+    const owner = req.user._id;
+    const { company, role, status, appliedOn, priority, salary, notes } = req.body;
 
-    // Check duplicate company + role per owner (case-insensitive)
+    // Check duplicate company + role for this authenticated owner (case-insensitive)
     const duplicate = await Application.findOne({
       owner,
       company: new RegExp(`^${company.trim()}$`, 'i'),
@@ -188,12 +184,19 @@ router.post(
 );
 
 // -----------------------------------------------------------------------------
-// 4. GET /:id - Retrieve single application populated with owner
+// 4. GET /:id - Retrieve single application enforcing owner isolation
 // -----------------------------------------------------------------------------
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const application = await Application.findById(req.params.id).populate('owner', 'name email');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      throw new ApiError(404, 'Application not found');
+    }
+
+    const application = await Application.findOne({
+      _id: req.params.id,
+      owner: req.user._id,
+    }).populate('owner', 'name email');
 
     if (!application) {
       throw new ApiError(404, 'Application not found');
@@ -207,16 +210,30 @@ router.get(
 );
 
 // -----------------------------------------------------------------------------
-// 5. PATCH /:id - Partial update with validation and populated owner
+// 5. PATCH /:id - Partial update enforcing owner isolation
 // -----------------------------------------------------------------------------
 router.patch(
   '/:id',
   validatePatchApplication,
   asyncHandler(async (req, res) => {
-    const updated = await Application.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    }).populate('owner', 'name email');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      throw new ApiError(404, 'Application not found');
+    }
+
+    const updates = { ...req.body };
+    delete updates.owner; // Prevent tampering with ownership
+
+    const updated = await Application.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        owner: req.user._id,
+      },
+      updates,
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).populate('owner', 'name email');
 
     if (!updated) {
       throw new ApiError(404, 'Application not found');
@@ -230,12 +247,19 @@ router.patch(
 );
 
 // -----------------------------------------------------------------------------
-// 6. DELETE /:id - Delete an application by ID
+// 6. DELETE /:id - Delete an application enforcing owner isolation
 // -----------------------------------------------------------------------------
 router.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    const deleted = await Application.findByIdAndDelete(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      throw new ApiError(404, 'Application not found');
+    }
+
+    const deleted = await Application.findOneAndDelete({
+      _id: req.params.id,
+      owner: req.user._id,
+    });
 
     if (!deleted) {
       throw new ApiError(404, 'Application not found');
@@ -246,7 +270,7 @@ router.delete(
 );
 
 // -----------------------------------------------------------------------------
-// 7. POST /:id/notes - Add a note to an existing application
+// 7. POST /:id/notes - Add note enforcing owner isolation
 // -----------------------------------------------------------------------------
 router.post(
   '/:id/notes',
@@ -262,7 +286,14 @@ router.post(
       });
     }
 
-    const application = await Application.findById(id);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new ApiError(404, 'Application not found');
+    }
+
+    const application = await Application.findOne({
+      _id: id,
+      owner: req.user._id,
+    });
 
     if (!application) {
       throw new ApiError(404, 'Application not found');

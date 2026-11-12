@@ -32,7 +32,8 @@ function isFutureDate(dateValue) {
  */
 export const validateApplication = (req, res, next) => {
   const errors = {};
-  const { owner, company, role, status, appliedOn, priority, salary } = req.body || {};
+  const { company, role, status, appliedOn, priority, salary } = req.body || {};
+  const owner = req.user?._id || req.body?.owner;
 
   // Owner: required, valid ObjectId
   if (!owner) {

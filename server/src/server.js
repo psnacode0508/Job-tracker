@@ -1,10 +1,13 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 
 import connectDB from './config/db.js';
 import { logger } from './middleware/logger.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
+import authRoutes from './routes/authRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import applicationRoutes from './routes/applicationRoutes.js';
 import demoRoutes from './routes/demoRoutes.js';
 
@@ -13,18 +16,21 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// 1. CORS middleware
+// 1. Helmet security headers middleware
+app.use(helmet());
+
+// 2. CORS middleware
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
 }));
 
-// 2. Body parser middleware
+// 3. Body parser middleware
 app.use(express.json());
 
-// 3. Request logger middleware
+// 4. Request logger middleware
 app.use(logger);
 
-// 4. Application and demo routes
+// 5. Routes
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
@@ -33,13 +39,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api', demoRoutes);
 
-// 5. 404 handler for unmatched routes
+// 6. 404 handler for unmatched routes
 app.use(notFoundHandler);
 
-// 6. Central error handler
+// 7. Central error handler
 // If errorHandler is registered before routes, it will never intercept errors passed to next(err) because Express executes middleware in registration order; unmatched route requests would terminate or bypass central error formatting.
 app.use(errorHandler);
 

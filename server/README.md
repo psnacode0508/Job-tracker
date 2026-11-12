@@ -292,9 +292,46 @@ Application.find({
 
 ---
 
+## Day 07: Security & Hardening Architecture
+
+### 1. Helmet Security Headers
+JobTrackr registers `helmet()` as the very first middleware in `src/server.js`. Helmet automatically sets essential HTTP response headers to protect against common web vulnerabilities:
+
+- **`X-Content-Type-Options: nosniff`**: Instructs browsers to strictly adhere to the MIME type declared in the `Content-Type` response header and disables MIME-type sniffing. This prevents malicious files uploaded or returned as images/text from being executed as JavaScript.
+- **`X-Frame-Options: SAMEORIGIN`**: Restricts the page from being rendered inside an `<iframe>`, `<frame>`, or `<object>` on third-party websites. This eliminates **Clickjacking** attacks, where an attacker transparently overlays an invisible iframe to trick authenticated users into clicking sensitive UI elements.
+- **`Strict-Transport-Security` (HSTS)**: Enforces that the client browser must only communicate with the server over secure HTTPS connections (`max-age=15552000; includeSubDomains`). This defends against SSL-stripping and man-in-the-middle (MITM) downgrade attacks.
+- **`Content-Security-Policy` (CSP)**: Defines an approved whitelist of trusted domains and sources for scripts, stylesheets, fonts, and images, dramatically reducing the blast radius of injection vulnerabilities.
+
+---
+
+### 2. Cross-Site Scripting (XSS) Defence
+In JobTrackr, notes can be added to applications with arbitrary text payloads, including malicious strings like `<img src=x onerror=alert(1)>`.
+
+- **Safe Storage in MongoDB**: Storing `<img src=x onerror=alert(1)>` in MongoDB documents is completely safe on the API server. MongoDB stores data as BSON text strings and does not execute or evaluate HTML markup or scripts.
+- **React Automatic JSX Escaping**: On the frontend, React protects against XSS by default. When rendering dynamic values in JSX expressions—such as `{note.text}`—React treats the input strictly as a string and automatically escapes dangerous characters (converting `<` to `&lt;`, `>` to `&gt;`, `"` to `&quot;`, and `&` to `&amp;`). Because the browser's DOM parser receives plain HTML entities, the `<img>` tag is rendered as visible text on screen rather than an executable DOM node.
+- **The Danger of `dangerouslySetInnerHTML`**: React provides the `dangerouslySetInnerHTML` prop for rendering raw HTML. If a developer uses `dangerouslySetInnerHTML={{ __html: note.text }}` without sanitization, the browser bypasses React's escaping mechanism, parses the `onerror` event handler, and executes `alert(1)`. If raw HTML rendering is ever required, developers must sanitize the payload using a trusted sanitizer such as **DOMPurify** (`DOMPurify.sanitize(note.text)`) prior to rendering.
+
+---
+
+### 3. NoSQL Injection Defence
+MongoDB query selectors accept nested objects containing query operators. For example, if an unhardened endpoint performs `User.findOne({ email: req.body.email, password: req.body.password })`, an attacker could send a JSON payload such as:
+```json
+{
+  "email": { "$ne": null },
+  "password": { "$ne": null }
+}
+```
+In an unprotected server, this query evaluates to *find any user where email is not null*, completely bypassing credential checks.
+
+JobTrackr implements a strict two-layer defense against NoSQL injection:
+1. **Explicit Type Validation**: In [authRoutes.js](file:///C:/Users/Aasritha/OneDrive/Desktop/Job%20Tracker/server/src/routes/authRoutes.js), route handlers explicitly enforce `typeof email === 'string'` and `typeof password === 'string'`. If an attacker submits an object (such as `{ "$ne": null }`), the server instantly rejects the request with HTTP `400 Bad Request` before invoking any database queries.
+2. **Global Query Sanitization (`mongoose.set('sanitizeFilter', true)`)**: In [db.js](file:///C:/Users/Aasritha/OneDrive/Desktop/Job%20Tracker/server/src/config/db.js), Mongoose is configured globally with `sanitizeFilter: true`. This feature automatically strips or disables MongoDB query operators (`$`-prefixed keys) from filter arguments across all Mongoose queries (`find`, `findOne`, `findOneAndUpdate`, etc.), guaranteeing that even unexpected user objects cannot manipulate query operators.
+
+---
+
 ## Postman Collection & Automated Tests
 
-The collection file [`JobTrackr_API.postman_collection.json`](./JobTrackr_API.postman_collection.json) is formatted according to the Postman v2.1.0 schema and includes 12 automated test requests.
+The collection file [`JobTrackr_API.postman_collection.json`](./JobTrackr_API.postman_collection.json) is formatted according to the Postman v2.1.0 schema and includes 22 automated test requests across 3 distinct test suites.
 
 ### Included Test Cases
 
@@ -313,6 +350,18 @@ The collection file [`JobTrackr_API.postman_collection.json`](./JobTrackr_API.po
 3. `POST /applications (duplicate company & role)` &rarr; Asserts `400 Bad Request` & duplicate error
 4. `GET /applications/:id (non-existent id)` &rarr; Asserts `404 Not Found` & `Application not found`
 5. `GET /unknown-route` &rarr; Asserts `404 Not Found` & `Route not found`
+
+#### Day 07 Auth & Security Tests
+1. `POST /auth/register` (User A) &rarr; Asserts `201 Created` & saves `tokenA`
+2. `POST /auth/register` (User B) &rarr; Asserts `201 Created` & saves `tokenB`
+3. `POST /auth/login` (Admin User) &rarr; Asserts `200 OK` & saves `adminToken`
+4. `POST /applications` (User A creates card) &rarr; Asserts `201 Created` & saves `appAId`
+5. `GET /applications/{{appAId}}` (User B access attempt) &rarr; Asserts `404 Not Found` (ownership isolation)
+6. `GET /admin/stats` (User B role access attempt) &rarr; Asserts `403 Forbidden` (role authorization)
+7. `GET /admin/stats` (Admin access) &rarr; Asserts `200 OK` & returns platform stats
+8. `POST /auth/login` (NoSQL injection `{ "email": { "$ne": null } }`) &rarr; Asserts `400`/`401` rejection
+9. `POST /applications/{{appAId}}/notes` (XSS payload `<img src=x onerror=alert(1)>`) &rarr; Asserts `201 Created` & safe string storage
+10. `POST /auth/login` (Rate limit 6th failed attempt) &rarr; Asserts `429 Too Many Requests`
 
 ### How to Import and Run
 1. Open **Postman**.

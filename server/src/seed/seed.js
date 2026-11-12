@@ -64,11 +64,15 @@ async function seedDatabase() {
     const user1 = await User.create({
       name: 'Alice Johnson',
       email: 'alice.johnson@example.com',
+      password: 'Password123!',
+      role: 'admin',
     });
 
     const user2 = await User.create({
       name: 'Bob Smith',
       email: 'bob.smith@example.com',
+      password: 'Password123!',
+      role: 'user',
     });
 
     console.log(`Created User 1 (Alice): ${user1._id}`);
