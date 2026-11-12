@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
+import connectDB from './config/db.js';
 import { logger } from './middleware/logger.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import applicationRoutes from './routes/applicationRoutes.js';
@@ -41,6 +42,9 @@ app.use(notFoundHandler);
 // 6. Central error handler
 // If errorHandler is registered before routes, it will never intercept errors passed to next(err) because Express executes middleware in registration order; unmatched route requests would terminate or bypass central error formatting.
 app.use(errorHandler);
+
+// Connect to MongoDB before starting HTTP server
+await connectDB();
 
 app.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);

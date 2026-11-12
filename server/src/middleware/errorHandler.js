@@ -10,14 +10,42 @@ export const notFoundHandler = (req, res, next) => {
 
 /**
  * Central error-handling middleware.
- * Returns JSON with status code (default 500).
+ * Handles ApiError, Mongoose CastError, ValidationError, MongoServerError (11000),
+ * and standard server errors.
  */
 export const errorHandler = (err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
+  let statusCode = err.statusCode || 500;
+  let message = err.message || 'Internal Server Error';
+  let errors = err.errors;
+
+  // Handle Mongoose CastError (e.g. invalid ObjectId)
+  if (err.name === 'CastError') {
+    statusCode = 400;
+    message = 'Invalid ID format';
+    errors = { id: 'Invalid ObjectId' };
+  }
+  // Handle Mongoose ValidationError
+  else if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = 'Validation failed';
+    errors = {};
+    if (err.errors) {
+      Object.keys(err.errors).forEach((field) => {
+        errors[field] = err.errors[field].message;
+      });
+    }
+  }
+  // Handle MongoServerError code 11000 (duplicate key)
+  else if (err.code === 11000 || (err.name === 'MongoServerError' && err.code === 11000)) {
+    statusCode = 400;
+    message = 'Duplicate field value entered';
+    errors = undefined;
+  }
+
   return res.status(statusCode).json({
     success: false,
-    message: err.message,
-    ...(Object.keys(err.errors || {}).length && { errors: err.errors }),
+    message,
+    ...(errors && Object.keys(errors).length > 0 && { errors }),
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

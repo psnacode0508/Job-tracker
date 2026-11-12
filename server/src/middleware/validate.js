@@ -1,8 +1,8 @@
-import { applications } from '../data/applications.js';
+import mongoose from 'mongoose';
 
 const ALLOWED_STATUSES = ['Applied', 'Interview', 'Offer', 'Rejected'];
 const ALLOWED_PRIORITIES = ['Low', 'Medium', 'High'];
-const ALLOWED_FIELDS = ['company', 'role', 'status', 'appliedOn', 'priority'];
+const ALLOWED_PATCH_FIELDS = ['company', 'role', 'status', 'appliedOn', 'priority', 'salary', 'owner'];
 
 /**
  * Checks if a string or date value represents a valid date.
@@ -26,11 +26,20 @@ function isFutureDate(dateValue) {
 }
 
 /**
- * Middleware to validate POST /applications requests.
+ * Middleware to validate POST /api/applications requests.
+ * Requires: owner (valid ObjectId), company (2-60), role (2-60).
+ * Optional: salary (>= 0), appliedOn (not future), status, priority.
  */
 export const validateApplication = (req, res, next) => {
   const errors = {};
-  const { company, role, status, appliedOn, priority } = req.body || {};
+  const { owner, company, role, status, appliedOn, priority, salary } = req.body || {};
+
+  // Owner: required, valid ObjectId
+  if (!owner) {
+    errors.owner = 'Owner is required';
+  } else if (!mongoose.Types.ObjectId.isValid(owner)) {
+    errors.owner = 'Owner must be a valid ObjectId';
+  }
 
   // Company: required, 2-60 chars
   if (!company || typeof company !== 'string' || company.trim().length < 2 || company.trim().length > 60) {
@@ -42,21 +51,21 @@ export const validateApplication = (req, res, next) => {
     errors.role = 'Role is required and must be between 2 and 60 characters';
   }
 
-  // Status: must be one of ['Applied', 'Interview', 'Offer', 'Rejected'] if provided
+  // Status: optional, must be one of ['Applied', 'Interview', 'Offer', 'Rejected'] if provided
   if (status !== undefined) {
     if (!ALLOWED_STATUSES.includes(status)) {
       errors.status = `Status must be one of: ${ALLOWED_STATUSES.join(', ')}`;
     }
   }
 
-  // Priority: must be one of ['Low', 'Medium', 'High'] if provided
+  // Priority: optional, must be one of ['Low', 'Medium', 'High'] if provided
   if (priority !== undefined) {
     if (!ALLOWED_PRIORITIES.includes(priority)) {
       errors.priority = `Priority must be one of: ${ALLOWED_PRIORITIES.join(', ')}`;
     }
   }
 
-  // AppliedOn: valid date and not in the future if provided
+  // AppliedOn: optional, valid date and not in the future if provided
   if (appliedOn !== undefined) {
     if (!isValidDate(appliedOn)) {
       errors.appliedOn = 'appliedOn must be a valid date';
@@ -65,18 +74,10 @@ export const validateApplication = (req, res, next) => {
     }
   }
 
-  // Check duplicate company + role against in-memory array (case-insensitive)
-  if (!errors.company && !errors.role && typeof company === 'string' && typeof role === 'string') {
-    const list = req.app?.locals?.applications || applications || [];
-    const isDuplicate = list.some(
-      (app) =>
-        app.company?.trim().toLowerCase() === company.trim().toLowerCase() &&
-        app.role?.trim().toLowerCase() === role.trim().toLowerCase()
-    );
-
-    if (isDuplicate) {
-      errors.company = 'An application for this company and role already exists';
-      errors.duplicate = 'An application for this company and role already exists';
+  // Salary: optional, non-negative number if provided
+  if (salary !== undefined && salary !== null) {
+    if (typeof salary !== 'number' || isNaN(salary) || salary < 0) {
+      errors.salary = 'Salary must be a non-negative number';
     }
   }
 
@@ -92,8 +93,8 @@ export const validateApplication = (req, res, next) => {
 };
 
 /**
- * Middleware to validate PATCH /applications/:id requests.
- * Only allows updating known fields and validates only the fields present in req.body.
+ * Middleware to validate PATCH /api/applications/:id requests.
+ * Only allows updating known fields: company, role, status, appliedOn, priority, salary, owner.
  */
 export const validatePatchApplication = (req, res, next) => {
   const errors = {};
@@ -110,8 +111,15 @@ export const validatePatchApplication = (req, res, next) => {
 
   // Ensure only known fields are allowed
   for (const key of bodyKeys) {
-    if (!ALLOWED_FIELDS.includes(key)) {
+    if (!ALLOWED_PATCH_FIELDS.includes(key)) {
       errors[key] = `Field '${key}' is not allowed for update`;
+    }
+  }
+
+  // Validate owner if present
+  if (body.owner !== undefined) {
+    if (!mongoose.Types.ObjectId.isValid(body.owner)) {
+      errors.owner = 'Owner must be a valid ObjectId';
     }
   }
 
@@ -149,6 +157,13 @@ export const validatePatchApplication = (req, res, next) => {
       errors.appliedOn = 'appliedOn must be a valid date';
     } else if (isFutureDate(body.appliedOn)) {
       errors.appliedOn = 'appliedOn cannot be in the future';
+    }
+  }
+
+  // Validate salary if present
+  if (body.salary !== undefined && body.salary !== null) {
+    if (typeof body.salary !== 'number' || isNaN(body.salary) || body.salary < 0) {
+      errors.salary = 'Salary must be a non-negative number';
     }
   }
 
