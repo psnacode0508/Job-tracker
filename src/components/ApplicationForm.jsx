@@ -25,7 +25,7 @@ const INITIAL_STATE = {
  *   applications:     Array<{ company: string, role: string }>,
  * }} props
  */
-function ApplicationForm({ onAddApplication, applications = [] }) {
+function ApplicationForm({ onAddApplication, applications = [], isSubmitting = false }) {
   const [form,   setForm]   = useState(INITIAL_STATE)
   const [errors, setErrors] = useState({})
 
@@ -62,8 +62,8 @@ function ApplicationForm({ onAddApplication, applications = [] }) {
     // Duplicate check — same company + role, case-insensitive
     const isDuplicate = applications.some(
       (app) =>
-        app.company.trim().toLowerCase() === company.toLowerCase() &&
-        app.role.trim().toLowerCase()    === role.toLowerCase()
+        app.company?.trim().toLowerCase() === company.toLowerCase() &&
+        app.role?.trim().toLowerCase()    === role.toLowerCase()
     )
     if (isDuplicate && !next.company && !next.role) {
       next.role = `You already have an application for "${role}" at "${company}".`
@@ -73,7 +73,7 @@ function ApplicationForm({ onAddApplication, applications = [] }) {
   }
 
   // ── Submit ───────────────────────────────────────────
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
 
     const validationErrors = validate()
@@ -82,18 +82,21 @@ function ApplicationForm({ onAddApplication, applications = [] }) {
       return
     }
 
-    onAddApplication({
-      id:        crypto.randomUUID(),
-      company:   form.company.trim(),
-      role:      form.role.trim(),
-      stage:     form.stage,
-      appliedOn: form.appliedOn,
-      priority:  form.priority,
-    })
+    try {
+      await onAddApplication({
+        company:   form.company.trim(),
+        role:      form.role.trim(),
+        status:    form.stage || 'Applied',
+        appliedOn: form.appliedOn,
+        priority:  form.priority,
+      })
 
-    // Reset form, refreshing today's date in case day changed
-    setForm({ ...INITIAL_STATE, appliedOn: todayISO() })
-    setErrors({})
+      // Reset form, refreshing today's date in case day changed
+      setForm({ ...INITIAL_STATE, appliedOn: todayISO() })
+      setErrors({})
+    } catch (err) {
+      // Handled by parent
+    }
   }
 
   // ── Render ───────────────────────────────────────────
@@ -116,6 +119,7 @@ function ApplicationForm({ onAddApplication, applications = [] }) {
             onChange={handleChange}
             placeholder="e.g. Acme Corp"
             maxLength={60}
+            disabled={isSubmitting}
             aria-describedby={errors.company ? 'company-error' : undefined}
           />
           {errors.company && (
@@ -137,6 +141,7 @@ function ApplicationForm({ onAddApplication, applications = [] }) {
             onChange={handleChange}
             placeholder="e.g. Frontend Engineer"
             maxLength={60}
+            disabled={isSubmitting}
             aria-describedby={errors.role ? 'role-error' : undefined}
           />
           {errors.role && (
@@ -157,6 +162,7 @@ function ApplicationForm({ onAddApplication, applications = [] }) {
             value={form.appliedOn}
             onChange={handleChange}
             max={todayISO()}
+            disabled={isSubmitting}
             aria-describedby={errors.appliedOn ? 'appliedOn-error' : undefined}
           />
           {errors.appliedOn && (
@@ -175,6 +181,7 @@ function ApplicationForm({ onAddApplication, applications = [] }) {
             className="app-form__input app-form__select"
             value={form.priority}
             onChange={handleChange}
+            disabled={isSubmitting}
           >
             <option value="High">High</option>
             <option value="Medium">Medium</option>
@@ -184,8 +191,13 @@ function ApplicationForm({ onAddApplication, applications = [] }) {
 
       </div>
 
-      <button type="submit" className="app-form__submit">
-        + Add Application
+      <button
+        type="submit"
+        className="app-form__submit"
+        disabled={isSubmitting}
+        style={isSubmitting ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
+      >
+        {isSubmitting ? 'Adding…' : '+ Add Application'}
       </button>
 
     </form>

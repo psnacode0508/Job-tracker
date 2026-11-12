@@ -20,7 +20,7 @@ const STAGES = ['Applied', 'Interview', 'Offer', 'Rejected']
  *   onDelete:  (id: string) => void,
  * }} props
  */
-function Board({ applications = [], onAdvance, onReject, onDelete }) {
+function Board({ applications = [], onAdvance, onReject, onDelete, busyCardIds = new Set() }) {
   return (
     <div className="board" role="region" aria-label="Job application board">
       {STAGES.map((stage) => (
@@ -28,10 +28,11 @@ function Board({ applications = [], onAdvance, onReject, onDelete }) {
           key={stage}
           title={stage}
           status={stage}
-          applications={applications.filter((app) => app.stage === stage)}
+          applications={applications.filter((app) => (app.status || app.stage) === stage)}
           onAdvance={onAdvance}
           onReject={onReject}
           onDelete={onDelete}
+          busyCardIds={busyCardIds}
         />
       ))}
     </div>

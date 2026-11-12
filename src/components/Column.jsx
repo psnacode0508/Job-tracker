@@ -12,7 +12,7 @@ import ApplicationCard from './ApplicationCard'
  *   onDelete:     (id: string) => void,
  * }} props
  */
-function Column({ title, status, applications = [], onAdvance, onReject, onDelete }) {
+function Column({ title, status, applications = [], onAdvance, onReject, onDelete, busyCardIds = new Set() }) {
   const count = applications.length
 
   return (
@@ -31,15 +31,19 @@ function Column({ title, status, applications = [], onAdvance, onReject, onDelet
         {count === 0 ? (
           <p className="column__empty">Nothing here yet</p>
         ) : (
-          applications.map((app) => (
-            <ApplicationCard
-              key={app.id}
-              application={app}
-              onAdvance={onAdvance}
-              onReject={onReject}
-              onDelete={onDelete}
-            />
-          ))
+          applications.map((app) => {
+            const cardId = app._id || app.id
+            return (
+              <ApplicationCard
+                key={cardId}
+                application={app}
+                onAdvance={onAdvance}
+                onReject={onReject}
+                onDelete={onDelete}
+                isBusy={busyCardIds?.has?.(cardId)}
+              />
+            )
+          })
         )}
       </div>
 

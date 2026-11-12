@@ -25,8 +25,13 @@ const PRIORITY_CLASS = {
  *   onDelete:  (id: string) => void,
  * }} props
  */
-function ApplicationCard({ application, onAdvance, onReject, onDelete }) {
-  const { id, role, company, appliedOn, priority, stage } = application
+function ApplicationCard({ application, onAdvance, onReject, onDelete, isBusy = false }) {
+  const id = application._id || application.id
+  const role = application.role
+  const company = application.company
+  const appliedOn = application.appliedOn
+  const priority = application.priority || 'Medium'
+  const stage = application.status || application.stage || 'Applied'
 
   // Determine the next stage label for the Advance button
   const currentIndex = STAGES.indexOf(stage)
@@ -35,16 +40,22 @@ function ApplicationCard({ application, onAdvance, onReject, onDelete }) {
     : null
 
   // Format the date nicely: "Nov 1, 2024"
-  const formattedDate = new Date(appliedOn).toLocaleDateString('en-US', {
-    month: 'short',
-    day:   'numeric',
-    year:  'numeric',
-  })
+  const formattedDate = appliedOn
+    ? new Date(appliedOn).toLocaleDateString('en-US', {
+        month: 'short',
+        day:   'numeric',
+        year:  'numeric',
+      })
+    : 'Recently'
 
   const isRejected = stage === 'Rejected'
 
   return (
-    <article className={`card ${isRejected ? 'card--rejected' : ''}`} aria-label={`${role} at ${company}`}>
+    <article
+      className={`card ${isRejected ? 'card--rejected' : ''}`}
+      aria-label={`${role} at ${company}`}
+      style={isBusy ? { opacity: 0.65, transition: 'opacity 0.2s' } : {}}
+    >
 
       {/* ── Top row: priority tag + date ── */}
       <div className="card__meta">
@@ -75,8 +86,10 @@ function ApplicationCard({ application, onAdvance, onReject, onDelete }) {
           <button
             className="card__btn card__btn--advance"
             onClick={() => onAdvance(id)}
+            disabled={isBusy}
+            style={isBusy ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           >
-            Advance to {nextStage}
+            {isBusy ? 'Updating…' : `Advance to ${nextStage}`}
           </button>
         )}
 
@@ -84,6 +97,8 @@ function ApplicationCard({ application, onAdvance, onReject, onDelete }) {
           <button
             className="card__btn card__btn--reject"
             onClick={() => onReject(id)}
+            disabled={isBusy}
+            style={isBusy ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           >
             Reject
           </button>
@@ -92,9 +107,11 @@ function ApplicationCard({ application, onAdvance, onReject, onDelete }) {
         <button
           className="card__btn card__btn--delete"
           onClick={() => onDelete(id)}
+          disabled={isBusy}
+          style={isBusy ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           aria-label={`Delete application for ${role} at ${company}`}
         >
-          Delete
+          {isBusy ? 'Deleting…' : 'Delete'}
         </button>
       </div>
 
