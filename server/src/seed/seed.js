@@ -1,3 +1,6 @@
+import dns from 'node:dns';
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
@@ -73,17 +76,20 @@ async function seedDatabase() {
 
     // 3. Generate 1,000 randomized job applications
     console.log('Generating 1,000 randomized job applications...');
-    const owners = [user1._id, user2._id];
     const applicationsToInsert = [];
 
     for (let i = 1; i <= 1000; i++) {
-      const owner = owners[i % owners.length];
+      // Assign actual Mongoose ObjectId (user1._id or user2._id)
+      const owner = i % 2 === 0 ? user1._id : user2._id;
+
       const companyBase = BASE_COMPANIES[i % BASE_COMPANIES.length];
       const role = ROLES[i % ROLES.length];
       const company = `${companyBase} (Batch ${Math.ceil(i / BASE_COMPANIES.length)})`;
-      const status = STATUSES[i % STATUSES.length];
+
+      // Distribute all 4 statuses evenly across each owner (~125 per status per owner)
+      const status = STATUSES[Math.floor((i - 1) / 2) % STATUSES.length];
+
       const priority = PRIORITIES[i % PRIORITIES.length];
-      // Random salary between 50,000 and 180,000
       const salary = Math.floor(Math.random() * (180000 - 50000 + 1)) + 50000;
 
       // Random past date within the last 180 days
@@ -123,16 +129,26 @@ async function seedDatabase() {
     }).explain('executionStats');
 
     const executionStats = explainResult.executionStats;
-    const stage = executionStats.executionStages.stage;
+    const indexStage = executionStats.executionStages.inputStage?.stage || executionStats.executionStages.stage;
+    const outerStage = executionStats.executionStages.stage;
     const totalDocsExamined = executionStats.totalDocsExamined;
     const nReturned = executionStats.nReturned;
+    const executionTimeMillis = executionStats.executionTimeMillis;
 
     console.log('\n================ EXPLAIN STATS ================');
-    console.log(`executionStages.stage: ${stage}`);
-    console.log(`totalDocsExamined:     ${totalDocsExamined}`);
-    console.log(`nReturned:             ${nReturned}`);
-    console.log(`executionTimeMillis:   ${executionStats.executionTimeMillis}ms`);
+    console.log(`Index Stage:         ${indexStage}`);
+    console.log(`Outer Stage:         ${outerStage}`);
+    console.log(`totalDocsExamined:   ${totalDocsExamined}`);
+    console.log(`nReturned:           ${nReturned}`);
+    console.log(`executionTimeMillis: ${executionTimeMillis}ms`);
     console.log('===============================================\n');
+
+    // Verify non-zero returned and examined counts
+    if (nReturned === 0) {
+      console.warn('Warning: nReturned is 0! Expected non-zero (~125 matching documents).');
+    } else {
+      console.log(`Verification Passed: nReturned (${nReturned}) and totalDocsExamined (${totalDocsExamined}) are non-zero.`);
+    }
 
     await mongoose.disconnect();
     console.log('MongoDB disconnected. Seed process completed.');
