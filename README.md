@@ -64,6 +64,9 @@ All screenshots are stored in [`./client/screenshots/`](./client/screenshots/):
 | `JWT_SECRET` | Cryptographic secret for signing tokens | `<long_random_entropy_string>` |
 | `JWT_EXPIRES_IN` | Token time-to-live | `1d` |
 | `CLIENT_URL` | Allowed frontend origin for CORS | `http://localhost:5173` |
+| `LLM_PROVIDER` | LLM service provider (`gemini` or `openai`) | `gemini` |
+| `LLM_API_KEY` | Private model provider API key | `your_llm_api_key_here` |
+| `LLM_MODEL` | Target language model | `gemini-2.5-flash` / `gpt-4o-mini` |
 
 #### Frontend (`Job Tracker/client/.env`)
 | Variable Name | Description | Example / Default |
@@ -118,3 +121,39 @@ Multiple stateful or stateless containers can be instantiated from a single imag
 Continuous Integration (CI) automatically builds, lints, and tests code changes on every pull request to catch defects early.
 Continuous Delivery/Deployment (CD) automatically packages and releases verified build artifacts directly to production infrastructure.
 CI guarantees code quality and prevents merge conflicts, while CD eliminates manual deployment overhead and reduces time-to-market.
+
+---
+
+## 🤖 Day 10: AI Tools & Security Architecture
+
+JobTrackr features four protected, production-hardened AI endpoints located under `/api/ai/*`. All AI operations require valid JWT authentication (`protect` middleware), enforce a strict **6,000-character input ceiling** prior to LLM execution, track per-request token expenditure in MongoDB (`AiUsage`), and securely mask model provider credentials.
+
+### Protected AI Endpoints
+
+| Endpoint | Method | Request Payload | Target Prompt & Model Config | Key Features & Output |
+| :--- | :--- | :--- | :--- | :--- |
+| `/api/ai/summarize` | `POST` | `{ "jobDescription": string, "temperature"?: number }` | `summarize.system.txt`<br>Default $T=0.2$ | Outputs strictly **5 concise bullet points** (Role, Must-haves, Nice-to-haves, Responsibilities, Red flags). Returns `{ summary, usage }`. |
+| `/api/ai/rewrite` | `POST` | `{ "text": string, "tone": "formal" \| "confident" \| "concise" }` | `rewrite.system.txt`<br>(Few-shot exemplars, $T=0.2$) | Rewrites resume bullet points using strong past-tense action verbs in **$\le 30$ words**. Returns `{ rewritten, tone, wordCount, usage }`. |
+| `/api/ai/extract` | `POST` | `{ "jobDescription": string }` | `extract.system.txt`<br>($T=0.0$, `jsonMode: true`) | Extracts structured JSON (`company`, `role`, `location`, `skills[]`, `minYears`, `salaryRange`). Features automated **single-retry resilience** on JSON parsing/schema validation failure. Returns `{ data, usage }`. |
+| `/api/ai/usage` | `GET` | *None (JWT Auth)* | Mongoose Aggregation | Computes authenticated user's token expenditure and cost for the current UTC day (`since: UTC 00:00:00`). Returns `{ totalCalls, totalInputTokens, totalOutputTokens, totalTokens, totalCostUsd, endpointBreakdown, recentCalls }`. |
+
+### Model Environment Variables (No Secret Values)
+- `LLM_PROVIDER`: Provider selector (`gemini` or `openai`). Defaults to `gemini`.
+- `LLM_API_KEY`: Secret API key for Google AI Studio or OpenAI Platform. Managed solely on the server.
+- `LLM_MODEL`: Target model identifier (`gemini-2.5-flash` or `gpt-4o-mini`).
+
+### 🛡️ Why LLMs Must Never Be Called Directly from React (Client-Side Security)
+Calling third-party LLM APIs (e.g., Google Gemini or OpenAI) directly from a client-side React single-page application introduces catastrophic security vulnerabilities:
+1. **API Key Exposure in Browser Bundles**: Any environment variable exposed to client code (such as Vite's `VITE_` variables) is baked directly into plain-text JavaScript chunks downloaded by every browser. Anyone can view client source code via DevTools (`Sources` tab) and steal the secret key.
+2. **Network Interception & Header Inspection**: Direct client calls transmit the API key in every outgoing HTTP request header (`Authorization: Bearer <KEY>`) or URL query string (`?key=<KEY>`), readily visible in the DevTools `Network` tab. Malicious users or compromised browser extensions can harvest the credentials instantly.
+3. **Quota Theft & Financial Loss**: An exposed LLM key enables attackers to programmatically exhaust your account rate limits, run unauthorized high-volume batch workloads, and trigger thousands of dollars in unexpected cloud charges.
+4. **Lack of Rate Limiting & Input Validation**: Calling APIs from the browser prevents you from enforcing server-side authorization, input size limits (e.g. JobTrackr's 6,000-character cap), prompt injection mitigations, and central usage audit logging.
+
+**The Solution**: JobTrackr routes all AI operations through the authenticated Express backend (`/api/ai/*`). The secret `LLM_API_KEY` remains strictly in server memory, requests are guarded by JWT authentication, inputs are sanitized, and every call is metered in MongoDB.
+
+---
+
+## 📑 AI Benchmarks & Documentation
+- **Prompt Engineering & Temperature Benchmarks**: Full zero-shot vs. few-shot and temperature sensitivity comparisons are documented in [`server/EXPERIMENTS.md`](./server/EXPERIMENTS.md).
+- **Core AI Interview Concepts**: Token limits, context windows, hallucinations, and cost optimization strategies are documented in [`server/INTERVIEW.md`](./server/INTERVIEW.md).
+
