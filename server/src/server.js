@@ -64,8 +64,15 @@ app.use(errorHandler);
 // Connect to MongoDB before starting HTTP server
 await connectDB();
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    process.exit(0);
+  });
 });
 
 export default app;
